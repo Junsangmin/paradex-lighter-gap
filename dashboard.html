@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gap Trading Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            background: #27ae60;
+        }
+
+        .status.disconnected {
+            background: #e74c3c;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Position Info */
+        .position-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .position-section h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+
+        .position-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+        }
+
+        .info-card .label {
+            font-size: 0.9em;
+            color: #bdc3c7;
+            margin-bottom: 5px;
+        }
+
+        .info-card .value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .pnl-positive {
+            color: #27ae60;
+        }
+
+        .pnl-negative {
+            color: #e74c3c;
+        }
+
+        /* Gap Table */
+        .gap-section {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .gap-section h2 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(52, 152, 219, 0.3);
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #ecf0f1;
+        }
+
+        td {
+            font-size: 0.95em;
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .coin-name {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #3498db;
+        }
+
+        .price {
+            font-family: 'Courier New', monospace;
+        }
+
+        .gap-positive {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .gap-negative {
+            color: #95a5a6;
+        }
+
+        .gap-entry {
+            background: rgba(46, 204, 113, 0.2);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .no-position {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            color: #95a5a6;
+        }
+
+        .timestamp {
+            text-align: center;
+            margin-top: 20px;
+            color: #bdc3c7;
+            font-size: 0.9em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .position-info {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 0.8em;
+            }
+
+            th, td {
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Gap Trading Dashboard</h1>
+            <div class="status disconnected" id="status">⚫ Disconnected</div>
+        </div>
+
+        <!-- Position Section -->
+        <div class="position-section" id="positionSection">
+            <h2>📊 Current Position</h2>
+            <div id="positionContent">
+                <div class="no-position">No position open</div>
+            </div>
+        </div>
+
+        <!-- Gap Table Section -->
+        <div class="gap-section">
+            <h2>💹 Real-time Gaps</h2>
+            <table id="gapTable">
+                <thead>
+                    <tr>
+                        <th>Coin</th>
+                        <th>Lighter Bid</th>
+                        <th>Lighter Ask</th>
+                        <th>Paradex Bid</th>
+                        <th>Paradex Ask</th>
+                        <th>LONG Gap (%)</th>
+                        <th>SHORT Gap (%)</th>
+                        <th>Best Gap</th>
+                    </tr>
+                </thead>
+                <tbody id="gapTableBody">
+                    <tr>
+                        <td colspan="8">Waiting for data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="timestamp" id="timestamp">Last update: -</div>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectInterval = null;
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:8765');
+
+            ws.onopen = () => {
+                console.log('Connected to server');
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').innerHTML = '🟢 Connected';
+
+                if (reconnectInterval) {
+                    clearInterval(reconnectInterval);
+                    reconnectInterval = null;
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'gaps') {
+                    updateGapTable(data.data);
+                } else if (data.type === 'position') {
+                    updatePosition(data.data);
+                }
+
+                updateTimestamp();
+            };
+
+            ws.onclose = () => {
+                console.log('Disconnected from server');
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').innerHTML = '⚫ Disconnected';
+
+                // Auto reconnect
+                if (!reconnectInterval) {
+                    reconnectInterval = setInterval(() => {
+                        console.log('Attempting to reconnect...');
+                        connect();
+                    }, 3000);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function updateGapTable(gaps) {
+            const tbody = document.getElementById('gapTableBody');
+
+            if (!gaps || Object.keys(gaps).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8">No data available</td></tr>';
+                return;
+            }
+
+            let rows = '';
+
+            // Sort by best gap (absolute value)
+            const sortedCoins = Object.keys(gaps).sort((a, b) => {
+                const gapA = Math.max(Math.abs(gaps[a].gap_long_pct), Math.abs(gaps[a].gap_short_pct));
+                const gapB = Math.max(Math.abs(gaps[b].gap_long_pct), Math.abs(gaps[b].gap_short_pct));
+                return gapB - gapA;
+            });
+
+            sortedCoins.forEach(coin => {
+                const data = gaps[coin];
+                const longGap = data.gap_long_pct * 100;
+                const shortGap = data.gap_short_pct * 100;
+                const bestGap = Math.abs(longGap) > Math.abs(shortGap) ? longGap : shortGap;
+                const bestDirection = Math.abs(longGap) > Math.abs(shortGap) ? 'LONG' : 'SHORT';
+
+                const isEntry = bestGap > 0.1; // 0.1% 이상
+                const rowClass = isEntry ? 'gap-entry' : '';
+
+                const longClass = longGap > 0.05 ? 'gap-positive' : 'gap-negative';
+                const shortClass = shortGap > 0.05 ? 'gap-positive' : 'gap-negative';
+
+                rows += `
+                    <tr class="${rowClass}">
+                        <td class="coin-name">${coin}</td>
+                        <td class="price">${data.lt_bid.toFixed(4)}</td>
+                        <td class="price">${data.lt_ask.toFixed(4)}</td>
+                        <td class="price">${data.pd_bid.toFixed(4)}</td>
+                        <td class="price">${data.pd_ask.toFixed(4)}</td>
+                        <td class="${longClass}">${longGap >= 0 ? '+' : ''}${longGap.toFixed(4)}%</td>
+                        <td class="${shortClass}">${shortGap >= 0 ? '+' : ''}${shortGap.toFixed(4)}%</td>
+                        <td class="${bestGap > 0 ? 'gap-positive' : 'gap-negative'}">
+                            ${bestGap >= 0 ? '+' : ''}${bestGap.toFixed(4)}% (${bestDirection})
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = rows;
+        }
+
+        function updatePosition(position) {
+            const content = document.getElementById('positionContent');
+
+            if (!position || !position.in_position) {
+                content.innerHTML = '<div class="no-position">No position open</div>';
+                return;
+            }
+
+            const totalPnl = position.lighter_pnl + position.paradex_pnl;
+            const pnlClass = totalPnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+            const elapsed = position.elapsed ? position.elapsed.toFixed(1) : '0.0';
+
+            content.innerHTML = `
+                <div class="position-info">
+                    <div class="info-card">
+                        <div class="label">Coin</div>
+                        <div class="value">${position.coin}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Direction</div>
+                        <div class="value">${position.direction}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Quantity</div>
+                        <div class="value">${position.quantity.toFixed(4)}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Entry Gap</div>
+                        <div class="value">${(position.entry_gap * 100).toFixed(4)}%</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Lighter Entry</div>
+                        <div class="value">${position.lighter_entry ? position.lighter_entry.toFixed(4) : 'N/A'}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Lighter Current</div>
+                        <div class="value">${position.lighter_current ? position.lighter_current.toFixed(4) : 'N/A'}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Lighter PnL</div>
+                        <div class="value ${position.lighter_pnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">
+                            ${position.lighter_pnl >= 0 ? '+' : ''}$${position.lighter_pnl.toFixed(4)}
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Paradex Entry</div>
+                        <div class="value">${position.paradex_entry ? position.paradex_entry.toFixed(4) : 'N/A'}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Paradex Current</div>
+                        <div class="value">${position.paradex_current ? position.paradex_current.toFixed(4) : 'N/A'}</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="label">Paradex PnL</div>
+                        <div class="value ${position.paradex_pnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">
+                            ${position.paradex_pnl >= 0 ? '+' : ''}$${position.paradex_pnl.toFixed(4)}
+                        </div>
+                    </div>
+                    <div class="info-card" style="border-left-color: #f39c12;">
+                        <div class="label">Total PnL</div>
+                        <div class="value ${pnlClass}">
+                            ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(4)}
+                        </div>
+                    </div>
+                    <div class="info-card" style="border-left-color: #9b59b6;">
+                        <div class="label">Elapsed</div>
+                        <div class="value">${elapsed}s</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('timestamp').innerText =
+                `Last update: ${now.toLocaleTimeString()}`;
+        }
+
+        // Connect on load
+        connect();
+    </script>
+</body>
+</html>
